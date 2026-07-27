@@ -1,58 +1,112 @@
 import streamlit as st
 from PIL import Image
-import time
 
 
-@st.dialog("Capture or upload photos")
+@st.dialog("Capture or Upload Photos")
 def add_photos_dialog():
+    # Initialize session state variables
+    if "attendance_images" not in st.session_state:
+        st.session_state.attendance_images = []
 
-    st.write('Add classroom photos to scan for attendance')
+    if "photo_tab" not in st.session_state:
+        st.session_state.photo_tab = "camera"
 
-    if 'photo_tab' not in st.session_state:
-        st.session_state.photo_tab = 'camera'
+    st.write("Add classroom photos to scan for attendance")
 
-    t1, t2 = st.columns(2)
+    # Tabs
+    col1, col2 = st.columns(2)
 
-    with t1:
-        type_camera = "primary" if st.session_state.photo_tab == 'camera' else 'tertiary'
-        if st.button('Camera', type=type_camera, width='stretch'):
-            st.session_state.photo_tab = 'camera'
+    with col1:
+        camera_type = (
+            "primary"
+            if st.session_state.photo_tab == "camera"
+            else "tertiary"
+        )
+
+        if st.button("Camera", type=camera_type, use_container_width=True):
+            st.session_state.photo_tab = "camera"
             st.rerun()
 
+    with col2:
+        upload_type = (
+            "primary"
+            if st.session_state.photo_tab == "upload"
+            else "tertiary"
+        )
 
-
-    with t2:
-        type_upload = "primary" if st.session_state.photo_tab == 'upload' else 'tertiary'
-        if st.button('Upload photos', type=type_upload, width='stretch'):
-            st.session_state.photo_tab = 'upload'
+        if st.button("Upload Photos", type=upload_type, use_container_width=True):
+            st.session_state.photo_tab = "upload"
             st.rerun()
 
-    if st.session_state.photo_tab == 'camera':
-        cam_photo = st.camera_input('Take Snapshot', key='dialog_cam')
-        if cam_photo:
-            st.session_state.attendance_images.append(Image.open(cam_photo))
-            st.toast('Photo Captured')
-            st.rerun()
+    # -------------------------
+    # Camera
+    # -------------------------
+    if st.session_state.photo_tab == "camera":
 
+        cam_photo = st.camera_input(
+            "Take Snapshot",
+            key="dialog_cam"
+        )
 
-    if st.session_state.photo_tab == 'upload':
-        uploaded_files = st.file_uploader( 'choose image files', type=['jpg', 'png', 'jpeg' ], accept_multiple_files=True, key='dialog_upload')
+        if cam_photo is not None:
+            try:
+                image = Image.open(cam_photo).convert("RGB")
+                st.session_state.attendance_images.append(image)
+
+                st.toast("Photo captured successfully.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Unable to process image.\n\n{e}")
+
+    # -------------------------
+    # Upload
+    # -------------------------
+    elif st.session_state.photo_tab == "upload":
+
+        uploaded_files = st.file_uploader(
+            "Choose image files",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            key="dialog_upload",
+        )
 
         if uploaded_files:
-            for f in uploaded_files:
-                st.session_state.attendance_images.append(Image.open(f))
-            
-            st.toast('Photo Uploaded Successfully')
-            st.rerun()
+
+            added = 0
+
+            for file in uploaded_files:
+                try:
+                    image = Image.open(file).convert("RGB")
+                    st.session_state.attendance_images.append(image)
+                    added += 1
+                except Exception as e:
+                    st.warning(f"Could not open {file.name}: {e}")
+
+            if added > 0:
+                st.toast(f"{added} photo(s) uploaded successfully.")
+                st.rerun()
 
     st.divider()
-    # if st.session_state.attendance_images:
-    #     st.subheader("Selected Photos")
 
-    #     cols = st.columns(3)
+    # Preview selected images
+    if st.session_state.attendance_images:
+        st.subheader("Selected Photos")
 
-    #     for i, img in enumerate(st.session_state.attendance_images):
-    #         with cols[i % 3]:
-    #             st.image(img, use_container_width=True)
-    if st.button('Done', type='primary', width='stretch'):
+        cols = st.columns(3)
+
+        for i, img in enumerate(st.session_state.attendance_images):
+            with cols[i % 3]:
+                st.image(
+                    img,
+                    use_container_width=True,
+                    caption=f"Photo {i + 1}"
+                )
+
+    # Done button
+    if st.button(
+        "Done",
+        type="primary",
+        use_container_width=True,
+    ):
         st.rerun()
